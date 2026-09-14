@@ -133,3 +133,50 @@ class TestDiscountThroughAPI:
         assert r.status_code == 200
         assert r.json()["balance"] == 500000
         assert "transactions" not in r.json()
+
+
+class TestPdfEncoding:
+    """
+    Real descriptions contain characters fpdf2's core fonts cannot encode.
+
+    An em dash is enough to raise, and the customer sees a broken download
+    rather than a bad character. PGGuru's own subscription description uses one,
+    so this is not a hypothetical input.
+    """
+
+    def _invoice(self, description: str):
+        import datetime
+        from app.models import Invoice, InvoiceLine
+        inv = Invoice(
+            number="DGN/BOS/26-27/00001", fy="26-27", kind="bill_of_supply",
+            status="issued", issue_date=datetime.date.today(),
+            seller_name="Dygine Software Solution", seller_address="Bengaluru",
+            seller_state_code="29", buyer_name="Pavan PG", buyer_state_code="29",
+            tax_treatment="none", subtotal_paise=149900, total_paise=149900)
+        inv.lines = [InvoiceLine(
+            position=0, description=description, sac="997331", quantity=1,
+            unit_price_paise=149900, taxable_paise=149900, tax_rate=0,
+            total_paise=149900)]
+        return inv
+
+    @pytest.mark.parametrize("description", [
+        "PGuru Starter \u2014 Sep 2026",          # em dash: the actual failure
+        "PGuru \u2013 Pro",                        # en dash
+        "Sunrise\u2019s plan",                     # curly apostrophe
+        "Plan \u201cPro\u201d",                    # curly quotes
+        "\u20b91,499 plan",                        # rupee sign
+        "Bullet \u2022 point",
+        "Renewal\u2026",
+        "\u4f60\u597d",                            # outside latin-1 entirely
+    ])
+    def test_awkward_characters_still_render(self, description):
+        from app.services import pdf_service
+        out = pdf_service.render(self._invoice(description))
+        assert out[:5] == b"%PDF-"
+
+    def test_substitutions_are_readable(self):
+        from app.services.pdf_service import latin1
+        assert latin1("PGuru \u2014 Sep") == "PGuru - Sep"
+        assert latin1("Sunrise\u2019s") == "Sunrise's"
+        assert latin1("\u20b91,499") == "Rs.1,499"
+        assert latin1(None) == ""

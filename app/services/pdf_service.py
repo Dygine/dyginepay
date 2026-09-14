@@ -36,6 +36,39 @@ def _rupees(paise: int) -> str:
     return f"Rs. {paise_to_rupees(paise)}"
 
 
+#: Characters that routinely arrive from a web form or a formatted string and
+#: are not in latin-1. An em dash in a plan description is enough to make the
+#: whole invoice 500 - and the customer sees a broken download, not a bad
+#: character.
+_SUBSTITUTIONS = {
+    "\u2014": "-",   # em dash
+    "\u2013": "-",   # en dash
+    "\u2018": "'", "\u2019": "'",
+    "\u201c": '"', "\u201d": '"',
+    "\u2026": "...",
+    "\u20b9": "Rs.",
+    "\u00a0": " ",   # non-breaking space
+    "\u2022": "-",   # bullet
+    "\u2192": "->",
+}
+
+
+def latin1(text: str | None) -> str:
+    """
+    Make any string safe for fpdf2's core fonts.
+
+    Substitutes the handful of characters that turn up in real descriptions,
+    then drops anything else that cannot be encoded. Dropping is deliberate:
+    an invoice with one odd character missing is a document; an invoice that
+    raises is a 500 and no document at all.
+    """
+    if not text:
+        return ""
+    for bad, good in _SUBSTITUTIONS.items():
+        text = text.replace(bad, good)
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
 class InvoicePDF(FPDF):
     def __init__(self, invoice: Invoice):
         super().__init__(orientation="P", unit="mm", format="A4")
@@ -47,16 +80,16 @@ class InvoicePDF(FPDF):
         inv = self.invoice
         self.set_text_color(*INK)
         self.set_font("Helvetica", "B", 16)
-        self.cell(0, 8, settings.BUSINESS_NAME, new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 8, latin1(settings.BUSINESS_NAME), new_x="LMARGIN", new_y="NEXT")
 
         self.set_font("Helvetica", "", 9)
         self.set_text_color(*MUTED)
         for line in [settings.BUSINESS_ADDRESS, settings.BUSINESS_EMAIL,
                      settings.BUSINESS_PHONE]:
             if line:
-                self.cell(0, 4.5, line, new_x="LMARGIN", new_y="NEXT")
+                self.cell(0, 4.5, latin1(line), new_x="LMARGIN", new_y="NEXT")
         if inv.seller_gstin:
-            self.cell(0, 4.5, f"GSTIN: {inv.seller_gstin}",
+            self.cell(0, 4.5, latin1(f"GSTIN: {inv.seller_gstin}"),
                       new_x="LMARGIN", new_y="NEXT")
 
         self.set_xy(120, 15)
@@ -67,7 +100,7 @@ class InvoicePDF(FPDF):
         self.set_xy(120, 24)
         self.set_font("Helvetica", "", 9)
         self.set_text_color(*MUTED)
-        self.cell(75, 4.5, inv.number, align="R", new_x="LMARGIN", new_y="NEXT")
+        self.cell(75, 4.5, latin1(inv.number), align="R", new_x="LMARGIN", new_y="NEXT")
         self.set_xy(120, 28.5)
         self.cell(75, 4.5, inv.issue_date.strftime("%d %b %Y"), align="R",
                   new_x="LMARGIN", new_y="NEXT")
@@ -95,16 +128,16 @@ class InvoicePDF(FPDF):
         self.cell(0, 5, "BILL TO", new_x="LMARGIN", new_y="NEXT")
         self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*INK)
-        self.cell(0, 5.5, inv.buyer_name, new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 5.5, latin1(inv.buyer_name), new_x="LMARGIN", new_y="NEXT")
         self.set_font("Helvetica", "", 9)
         self.set_text_color(*MUTED)
         if inv.buyer_address:
-            self.multi_cell(110, 4.5, inv.buyer_address)
+            self.multi_cell(110, 4.5, latin1(inv.buyer_address))
         if inv.buyer_gstin:
-            self.cell(0, 4.5, f"GSTIN: {inv.buyer_gstin}",
+            self.cell(0, 4.5, latin1(f"GSTIN: {inv.buyer_gstin}"),
                       new_x="LMARGIN", new_y="NEXT")
         if inv.place_of_supply:
-            self.cell(0, 4.5, f"Place of supply: {inv.place_of_supply}",
+            self.cell(0, 4.5, latin1(f"Place of supply: {inv.place_of_supply}"),
                       new_x="LMARGIN", new_y="NEXT")
         self.ln(5)
 
@@ -132,10 +165,10 @@ class InvoicePDF(FPDF):
         self.set_text_color(*INK)
         for line in inv.lines:
             y = self.get_y()
-            self.multi_cell(widths[0], 6, line.description[:90],
+            self.multi_cell(widths[0], 6, latin1(line.description)[:90],
                             new_x="RIGHT", new_y="TOP", max_line_height=5)
             self.set_xy(15 + widths[0], y)
-            self.cell(widths[1], 6, line.sac or "-", align="R")
+            self.cell(widths[1], 6, latin1(line.sac) or "-", align="R")
             self.cell(widths[2], 6, str(line.quantity), align="R")
             if taxed:
                 self.cell(widths[3], 6, _rupees(line.taxable_paise), align="R")

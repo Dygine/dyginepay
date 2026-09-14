@@ -105,6 +105,24 @@ class InvoicePDF(FPDF):
         self.cell(75, 4.5, inv.issue_date.strftime("%d %b %Y"), align="R",
                   new_x="LMARGIN", new_y="NEXT")
 
+        # The product, as a reference line only.
+        #
+        # The seller block above stays the legal entity and cannot be swapped
+        # for the product name. An invoice names the supplier - the entity with
+        # the PAN, the bank account and (once registered) the GSTIN. "PGuru" is
+        # a product, not a legal person: an invoice issued in its name is not a
+        # valid tax document, and it would not match the descriptor the
+        # customer sees on their card statement either.
+        #
+        # So the customer gets both: the name they recognise here, and the
+        # company they actually paid at the top.
+        product = (inv.notes or {}).get("product") if inv.notes else None
+        if product:
+            self.set_xy(120, 33)
+            self.set_font("Helvetica", "", 8.5)
+            self.cell(75, 4.5, latin1(f"for {product}"), align="R",
+                      new_x="LMARGIN", new_y="NEXT")
+
         self.ln(8)
         self.set_draw_color(*RULE)
         self.line(15, self.get_y(), 195, self.get_y())

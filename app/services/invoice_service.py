@@ -92,7 +92,9 @@ def issue(db: Session, *, product: Product, customer: Customer,
         sgst_paise=doc.sgst_paise,
         igst_paise=doc.igst_paise,
         total_paise=doc.total_paise,
-        notes=notes,
+        # The product is recorded as a reference, never as the seller. See the
+        # note in pdf_service about why the seller block cannot change.
+        notes={**(notes or {}), "product": product.name, "product_slug": product.slug},
     )
     db.add(invoice)
     db.flush()

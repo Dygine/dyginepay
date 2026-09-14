@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pay {{ session.total_paise|rupees }} &middot; {{ business }}</title>
+<style>
+:root{--ink:#111114;--muted:#6e6e78;--line:#e6e6ea;--brand:#0d9488}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+ color:var(--ink);background:#f4f4f6;display:flex;align-items:center;
+ justify-content:center;min-height:100vh;padding:20px;-webkit-font-smoothing:antialiased}
+.box{background:#fff;border-radius:14px;width:100%;max-width:400px;overflow:hidden;
+ box-shadow:0 1px 3px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.06)}
+.head{padding:22px 24px 18px;border-bottom:1px solid var(--line)}
+.head .biz{font-size:12px;color:var(--muted);letter-spacing:.05em;
+ text-transform:uppercase}
+.head .amt{font-size:31px;font-weight:650;letter-spacing:-.025em;margin-top:7px}
+.head .to{font-size:13px;color:var(--muted);margin-top:3px}
+.body{padding:18px 24px}
+.line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:14px}
+.line .d{color:var(--ink)}
+.line .v{font-variant-numeric:tabular-nums;white-space:nowrap}
+.line.mut .d,.line.mut .v{color:var(--muted);font-size:13px}
+.rule{height:1px;background:var(--line);margin:9px 0}
+.total{font-weight:650;font-size:16px}
+.foot{padding:0 24px 22px}
+button{width:100%;background:var(--brand);color:#fff;border:none;border-radius:9px;
+ padding:14px;font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+button:hover{filter:brightness(1.07)}
+button:disabled{opacity:.6;cursor:wait}
+.secure{text-align:center;font-size:11.5px;color:var(--muted);margin-top:13px}
+.expiry{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;
+ border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="head">
+    <div class="biz">{{ business }}</div>
+    <div class="amt">{{ session.total_paise|rupees }}</div>
+    <div class="to">{{ customer.name }}</div>
+  </div>
+
+  <div class="body">
+    <div class="err" id="err"></div>
+    {% for item in session.line_items %}
+    <div class="line"><span class="d">{{ item.description }}{% if item.quantity and item.quantity > 1 %}
+      &times;{{ item.quantity }}{% endif %}</span>
+      <span class="v">{{ (item.amount * (item.quantity or 1))|rupees }}</span></div>
+    {% endfor %}
+    {% if session.tax_paise %}
+    <div class="rule"></div>
+    <div class="line mut"><span class="d">Subtotal</span>
+      <span class="v">{{ session.subtotal_paise|rupees }}</span></div>
+    <div class="line mut"><span class="d">GST</span>
+      <span class="v">{{ session.tax_paise|rupees }}</span></div>
+    {% endif %}
+    <div class="rule"></div>
+    <div class="line total"><span class="d">Total</span>
+      <span class="v">{{ session.total_paise|rupees }}</span></div>
+  </div>
+
+  <div class="foot">
+    <button id="pay">Pay {{ session.total_paise|rupees }}</button>
+    <div class="secure">Secured by Razorpay &middot; card details never touch
+      {{ business }}</div>
+    <div class="expiry">This link expires at
+      {{ session.expires_at.strftime('%H:%M') }}</div>
+  </div>
+</div>
+
+<form id="cb" method="post" action="{{ callback_url }}" style="display:none">
+  <input name="razorpay_payment_id"><input name="razorpay_order_id">
+  <input name="razorpay_signature">
+</form>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+// The callback is posted to our server, which verifies the signature before
+// anything is written. Nothing here is trusted; this form is a courier.
+var btn = document.getElementById('pay'),
+    cb  = document.getElementById('cb'),
+    err = document.getElementById('err');
+
+function fail(msg){ err.textContent = msg; err.style.display = 'block';
+                    btn.disabled = false; btn.textContent = 'Try again'; }
+
+var rzp = new Razorpay({
+  key: "{{ razorpay_key_id }}",
+  amount: {{ session.total_paise }},
+  currency: "INR",
+  name: {{ business|tojson }},
+  description: {{ (session.line_items[0].description if session.line_items else 'Payment')|tojson }},
+  order_id: {{ order.razorpay_order_id|tojson }},
+  prefill: { name: {{ customer.name|tojson }},
+             email: {{ (customer.email or '')|tojson }},
+             contact: {{ (customer.phone or '')|tojson }} },
+  theme: { color: "#0d9488" },
+  handler: function (res) {
+    cb.razorpay_payment_id.value = res.razorpay_payment_id;
+    cb.razorpay_order_id.value   = res.razorpay_order_id;
+    cb.razorpay_signature.value  = res.razorpay_signature;
+    btn.disabled = true; btn.textContent = 'Confirming…';
+    cb.submit();
+  },
+  modal: { ondismiss: function(){ btn.disabled = false;
+                                  btn.textContent = 'Pay {{ session.total_paise|rupees }}'; } }
+});
+
+rzp.on('payment.failed', function (res) {
+  fail((res.error && res.error.description) || 'Payment failed. Please try again.');
+});
+
+btn.onclick = function(){ btn.disabled = true; btn.textContent = 'Opening…'; rzp.open(); };
+</script>
+</body></html>

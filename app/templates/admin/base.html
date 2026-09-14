@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Dygine Pay{% endblock %}</title>
+<style>
+:root{
+  --ink:#111114; --muted:#6e6e78; --line:#e6e6ea; --bg:#fafafa; --panel:#fff;
+  --brand:#0d9488; --ok:#16a34a; --warn:#d97706; --bad:#dc2626;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+     color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.layout{display:flex;min-height:100vh}
+nav{width:210px;background:#09090b;color:#9a9a9a;padding:18px 0;flex-shrink:0}
+nav .brand{color:#fff;font-weight:700;font-size:15px;padding:0 18px 18px;
+  letter-spacing:-.01em}
+nav .brand span{color:var(--brand)}
+nav a{display:block;padding:8px 18px;border-left:3px solid transparent;font-size:13.5px}
+nav a:hover{color:#fff}
+nav a.on{color:#fff;border-left-color:var(--brand);background:#141417}
+nav .sep{margin:14px 18px 6px;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:#5a5a63}
+main{flex:1;padding:26px 30px;max-width:1250px}
+header.page{display:flex;justify-content:space-between;align-items:flex-start;
+  margin-bottom:22px;gap:16px;flex-wrap:wrap}
+h1{font-size:21px;font-weight:650;letter-spacing:-.02em}
+h2{font-size:15px;font-weight:600;margin-bottom:10px}
+.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+  padding:5px 11px;font-size:12.5px;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:16px 18px;margin-bottom:16px}
+.grid{display:grid;gap:12px;margin-bottom:18px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(185px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.stat .label{font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted)}
+.stat .value{font-size:22px;font-weight:650;margin-top:5px;letter-spacing:-.02em}
+.stat .note{font-size:12px;color:var(--muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:9px;border-bottom:1px solid #f1f1f4;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.s-captured,.s-processed,.s-delivered,.s-active,.s-paid,.s-issued{background:var(--ok)}
+.s-created,.s-pending,.s-trial,.s-authorized{background:var(--warn)}
+.s-failed,.s-dead,.s-expired,.s-suspended,.s-cancelled,.s-refunded{background:var(--bad)}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:10px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);
+  border-radius:7px;font:inherit;font-size:13px;background:#fff}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:-1px;
+  border-color:transparent}
+button,.btn{background:var(--brand);color:#fff;border:none;border-radius:7px;
+  padding:8px 14px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+  margin-top:12px;display:inline-block}
+button:hover{filter:brightness(1.07)}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn-bad{background:var(--bad)}
+.btn-sm{padding:4px 9px;font-size:12px;margin-top:0}
+.empty{color:var(--muted);padding:22px 0;text-align:center;font-size:13px}
+.flash{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:12px 14px;
+  border-radius:8px;margin-bottom:16px;font-size:13px}
+.flash.bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.flash code{display:block;margin-top:6px;font-family:ui-monospace,monospace;
+  word-break:break-all;font-size:12.5px;background:#fff;padding:8px;border-radius:5px}
+.bars{display:flex;gap:2px;align-items:flex-end;height:56px;margin-top:12px}
+.bars i{flex:1;background:var(--brand);opacity:.75;border-radius:2px 2px 0 0;
+  min-height:2px}
+.inline{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.inline>*{margin-top:0}
+.tag{font-size:11px;background:#f4f4f6;border-radius:4px;padding:2px 6px;
+  color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <div class="brand">Dygine<span>Pay</span></div>
+  <a href="/admin" class="{{ 'on' if active=='dashboard' }}">Dashboard</a>
+  <a href="/admin/payments" class="{{ 'on' if active=='payments' }}">Payments</a>
+  <a href="/admin/invoices" class="{{ 'on' if active=='invoices' }}">Invoices</a>
+  <a href="/admin/wallets" class="{{ 'on' if active=='wallets' }}">Wallets</a>
+  <a href="/admin/customers" class="{{ 'on' if active=='customers' }}">Customers</a>
+  <div class="sep">Configure</div>
+  <a href="/admin/products" class="{{ 'on' if active=='products' }}">Products &amp; keys</a>
+  <a href="/admin/plans" class="{{ 'on' if active=='plans' }}">Plans</a>
+  <a href="/admin/costs" class="{{ 'on' if active=='costs' }}">Costs</a>
+  <div class="sep">Operate</div>
+  <a href="/admin/webhooks" class="{{ 'on' if active=='webhooks' }}">Webhooks</a>
+  <a href="/admin/audit" class="{{ 'on' if active=='audit' }}">Audit log</a>
+  <a href="/admin/settings" class="{{ 'on' if active=='settings' }}">Settings</a>
+  <div class="sep">{{ user.email if user else '' }}</div>
+  <a href="/admin/logout">Sign out</a>
+</nav>
+<main>
+{% block body %}{% endblock %}
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ 'Payment received' if paid else 'Payment status' }} &middot; {{ business }}</title>
+<style>
+body{font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ background:#f4f4f6;display:flex;align-items:center;justify-content:center;
+ min-height:100vh;margin:0;padding:20px;color:#111114}
+.box{background:#fff;border-radius:14px;padding:34px 28px;max-width:380px;
+ width:100%;text-align:center;box-shadow:0 12px 32px rgba(0,0,0,.06)}
+.mark{width:52px;height:52px;border-radius:50%;margin:0 auto 16px;
+ display:flex;align-items:center;justify-content:center;font-size:25px;color:#fff}
+.ok{background:#16a34a}.no{background:#d97706}
+h1{font-size:19px;margin:0 0 7px;letter-spacing:-.02em}
+p{color:#6e6e78;font-size:14px;margin:0}
+.amt{font-size:27px;font-weight:650;margin:16px 0 4px;letter-spacing:-.025em}
+a{display:inline-block;margin-top:20px;color:#0d9488;font-size:14px;
+ text-decoration:none;font-weight:500}
+</style></head>
+<body><div class="box">
+{% if paid %}
+  <div class="mark ok">&check;</div>
+  <h1>Payment received</h1>
+  <div class="amt">{{ session.total_paise|rupees }}</div>
+  <p>Your invoice has been raised and sent to the account this was paid from.</p>
+{% elif not verified %}
+  <div class="mark no">!</div>
+  <h1>We could not verify this</h1>
+  <p>The confirmation from your browser did not check out. If money left your
+     account it will be confirmed automatically within a few minutes — do not
+     pay again.</p>
+{% else %}
+  <div class="mark no">…</div>
+  <h1>Still confirming</h1>
+  <p>We have not had confirmation from the bank yet. This usually takes a few
+     seconds. Do not pay again — refresh this page shortly.</p>
+{% endif %}
+{% if session.success_url %}<a href="{{ session.success_url }}">Continue</a>{% endif %}
+</div></body></html>

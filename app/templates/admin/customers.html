@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}{% set active='customers' %}
+{% block body %}
+<header class="page"><div><h1>Customers</h1>
+  <div class="sub">Across every product. A PG owner who also buys HRLens appears
+    once per product here — one place your individual tools cannot see.</div></div></header>
+<div class="card"><table>
+  <tr><th>Name</th><th>Product</th><th>External id</th><th>Email</th><th>GSTIN</th>
+      <th>State</th><th class="num">Lifetime</th><th class="num">Wallet</th></tr>
+  {% for c in customers %}
+  <tr>
+    <td><strong>{{ c.name }}</strong></td>
+    <td>{{ products.get(c.product_id|string).slug if products.get(c.product_id|string) else '—' }}</td>
+    <td class="mono">{{ c.external_id }}</td>
+    <td>{{ c.email or '—' }}</td>
+    <td class="mono">{{ c.gstin or '—' }}</td>
+    <td>{{ c.state_code or '—' }}</td>
+    <td class="num">{{ spend.get(c.id|string, 0)|rupees }}</td>
+    <td class="num">{{ balances.get(c.id|string, 0)|rupees }}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="empty">No customers yet. They appear the
+    first time a tool creates a checkout session.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

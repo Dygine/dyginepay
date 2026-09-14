@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}{% set active='settings' %}
+{% block body %}
+<header class="page"><div><h1>Settings</h1>
+  <div class="sub">These come from environment variables. Change them in Render,
+    not here — a payments config you can edit from a browser is one an attacker
+    can edit too.</div></div></header>
+
+<div class="grid g2">
+<div class="card"><h2>Business identity</h2><table>
+  <tr><td>Name</td><td class="num">{{ settings.BUSINESS_NAME }}</td></tr>
+  <tr><td>Address</td><td class="num">{{ settings.BUSINESS_ADDRESS }}</td></tr>
+  <tr><td>State code</td><td class="num">{{ settings.BUSINESS_STATE_CODE }}</td></tr>
+  <tr><td>GSTIN</td><td class="num mono">{{ settings.BUSINESS_GSTIN or 'not registered' }}</td></tr>
+  <tr><td>Invoice prefix</td><td class="num mono">{{ settings.INVOICE_PREFIX }}</td></tr>
+  <tr><td>Default SAC</td><td class="num mono">{{ settings.DEFAULT_SAC }}</td></tr>
+  <tr><td>GST rate</td><td class="num">{{ settings.DEFAULT_GST_RATE }}%</td></tr>
+</table>
+{% if not gst_registered %}
+<div class="flash" style="margin-top:12px">Bills of supply are being issued with
+  no tax. That is correct below the ₹20 lakh services threshold. Set
+  <code style="display:inline;background:none;padding:0">BUSINESS_GSTIN</code> the
+  day you register and tax invoices start on the next payment.</div>
+{% endif %}
+</div>
+
+<div class="card"><h2>Gateway &amp; runtime</h2><table>
+  <tr><td>Environment</td><td class="num">{{ settings.ENVIRONMENT }}</td></tr>
+  <tr><td>Base URL</td><td class="num mono">{{ settings.BASE_URL }}</td></tr>
+  <tr><td>Razorpay mode</td><td class="num">{{ settings.RAZORPAY_MODE }}</td></tr>
+  <tr><td>Razorpay keys</td><td class="num">
+    {% if razorpay_configured %}<span class="dot s-captured"></span>configured
+    {% else %}<span class="dot s-failed"></span>missing{% endif %}</td></tr>
+  <tr><td>Webhook secret</td><td class="num">
+    {% if webhook_secret_set %}<span class="dot s-captured"></span>set
+    {% else %}<span class="dot s-failed"></span>not set{% endif %}</td></tr>
+  <tr><td>Dispatcher</td><td class="num">{{ 'on' if settings.DISPATCHER_ENABLED else 'off' }}</td></tr>
+</table>
+<h2 style="margin-top:16px">Point Razorpay here</h2>
+<p class="sub">Dashboard → Settings → Webhooks → Add New Webhook</p>
+<pre class="mono" style="background:#fafafa;padding:11px;border-radius:7px;
+  margin-top:8px;font-size:11.5px;overflow-x:auto">{{ settings.BASE_URL }}/webhooks/razorpay
+
+Events: payment.captured, payment.failed,
+        order.paid, refund.processed</pre>
+</div>
+</div>
+{% endblock %}

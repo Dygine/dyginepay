@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}{% set active='costs' %}
+{% block body %}
+<header class="page"><div><h1>Costs</h1>
+  <div class="sub">What each tool costs you. Subtracted from net revenue to give
+    the margin on the dashboard.</div></div></header>
+
+<div class="card"><h2>Record a cost</h2>
+<form method="post" action="/admin/costs">
+  <div class="inline">
+    <div style="flex:2"><label>Product (blank = shared)</label>
+      <select name="product_id"><option value="">Shared / all</option>
+      {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1"><label>Category</label><select name="category">
+      <option>hosting</option><option>domain</option><option>api</option>
+      <option>tooling</option><option>other</option></select></div>
+    <div style="flex:3"><label>Description</label>
+      <input name="description" placeholder="Render Starter, October" required></div>
+    <div style="flex:1"><label>Amount (₹)</label><input name="amount" placeholder="600" required></div>
+    <div style="flex:1"><label>Date</label><input name="incurred_on" type="date"></div>
+    <button type="submit">Add</button>
+  </div>
+</form></div>
+
+<div class="card"><table>
+  <tr><th>Date</th><th>Product</th><th>Category</th><th>Description</th>
+      <th class="num">Amount</th></tr>
+  {% for c in costs %}
+  <tr><td>{{ c.incurred_on.strftime('%d %b %Y') }}</td>
+    <td>{{ product_map.get(c.product_id|string).slug if c.product_id and product_map.get(c.product_id|string) else 'shared' }}</td>
+    <td>{{ c.category }}</td><td>{{ c.description }}</td>
+    <td class="num">{{ c.amount_paise|rupees }}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">No costs recorded. Margin will show
+    revenue minus gateway fees only.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

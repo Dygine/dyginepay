@@ -1,0 +1,86 @@
+{% extends "admin/base.html" %}{% set active='products' %}
+{% block body %}
+<header class="page"><div><h1>Products &amp; keys</h1>
+  <div class="sub">One product per tool. One key pair per tool, held in its master admin.</div></div>
+</header>
+
+{% if new_secret %}
+<div class="flash"><strong>Key issued. This secret is shown once and is not
+  recoverable.</strong> Copy it into your tool's settings now.
+  <code>{{ new_key_id }}:{{ new_secret }}</code></div>
+{% endif %}
+
+<div class="grid g2">
+<div class="card">
+  <h2>Add a product</h2>
+  <form method="post" action="/admin/products">
+    <label>Slug</label><input name="slug" placeholder="pgdesk" required>
+    <label>Name</label><input name="name" placeholder="PGDesk" required>
+    <label>Webhook URL (optional)</label>
+    <input name="webhook_url" placeholder="https://app.pgdesk.in/api/dygine/webhook">
+    <button type="submit">Create product</button>
+  </form>
+</div>
+<div class="card">
+  <h2>How your tool authenticates</h2>
+  <p class="sub">HTTP Basic, key id as username, secret as password — the same
+  scheme Razorpay uses.</p>
+  <pre class="mono" style="background:#fafafa;padding:11px;border-radius:7px;
+    margin-top:10px;overflow-x:auto;font-size:11.5px">curl -u dgn_live_xxx:secret \
+  -H "Idempotency-Key: unique-per-attempt" \
+  -d '{"customer":{"external_id":"org_1","name":"Sunrise PG"},
+       "line_items":[{"description":"Pro","amount":149900}]}' \
+  {{ settings.BASE_URL }}/v1/checkout/sessions</pre>
+</div>
+</div>
+
+{% for p in products %}
+<div class="card">
+  <header class="page" style="margin-bottom:14px">
+    <div><h2>{{ p.name }} <span class="tag">{{ p.slug }}</span></h2>
+      <div class="sub">{{ p.webhook_url or 'No webhook URL — this tool gets no events' }}</div></div>
+    <a class="btn btn-ghost btn-sm" href="/admin/products/{{ p.id }}/secret">Webhook secret</a>
+  </header>
+
+  <table>
+    <tr><th>Key id</th><th>Mode</th><th>Label</th><th>Last used</th><th></th></tr>
+    {% for k in keys.get(p.id|string, []) %}
+    <tr>
+      <td class="mono">{{ k.key_id }}<br>
+        <span class="tag">secret {{ k.secret_hint }}…</span></td>
+      <td>{{ k.mode }}</td>
+      <td>{{ k.label or '—' }}</td>
+      <td>{{ k.last_used_at.strftime('%d %b %H:%M') if k.last_used_at else 'never' }}</td>
+      <td class="num">
+        {% if k.is_active %}
+        <form method="post" action="/admin/keys/{{ k.id }}/revoke" style="display:inline">
+          <button class="btn-bad btn-sm" type="submit">Revoke</button></form>
+        {% else %}<span class="tag">revoked</span>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No keys issued.</td></tr>{% endfor %}
+  </table>
+
+  <div class="grid g2" style="margin-top:14px">
+    <form method="post" action="/admin/products/{{ p.id }}/keys">
+      <div class="inline">
+        <div style="flex:1"><label>Mode</label>
+          <select name="mode"><option value="test">test</option>
+            <option value="live">live</option></select></div>
+        <div style="flex:2"><label>Label</label>
+          <input name="label" placeholder="production server"></div>
+        <button type="submit">Issue key</button>
+      </div>
+    </form>
+    <form method="post" action="/admin/products/{{ p.id }}/webhook">
+      <label>Webhook URL</label>
+      <input name="webhook_url" value="{{ p.webhook_url or '' }}">
+      <label>IP allowlist (comma separated, blank = any)</label>
+      <input name="ip_allowlist" value="{{ p.ip_allowlist }}">
+      <button class="btn-ghost" type="submit">Save</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="empty">No products yet. Add your first tool above.</div></div>
+{% endfor %}
+{% endblock %}

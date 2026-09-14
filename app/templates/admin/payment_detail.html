@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}{% set active='payments' %}
+{% block body %}
+<header class="page">
+  <div><h1 class="mono">{{ payment.reference }}</h1>
+    <div class="sub"><span class="dot s-{{ payment.status }}"></span>{{ payment.status }}
+      &middot; {{ payment.amount_paise|rupees }}
+      {% if payment.verified_by %}&middot; verified by {{ payment.verified_by }}{% endif %}</div></div>
+  <a class="pill" href="/admin/payments">Back</a>
+</header>
+
+<div class="grid g2">
+<div class="card"><h2>Details</h2><table>
+  <tr><td>Product</td><td class="num">{{ product.name if product else '—' }}</td></tr>
+  <tr><td>Customer</td><td class="num">{{ customer.name if customer else '—' }}</td></tr>
+  <tr><td>External id</td><td class="num mono">{{ customer.external_id if customer else '—' }}</td></tr>
+  <tr><td>Purpose</td><td class="num">{{ order.purpose if order else '—' }}</td></tr>
+  <tr><td>Method</td><td class="num">{{ payment.method or '—' }}</td></tr>
+  <tr><td>Razorpay id</td><td class="num mono">{{ payment.razorpay_payment_id or '—' }}</td></tr>
+  <tr><td>Amount</td><td class="num">{{ payment.amount_paise|rupees }}</td></tr>
+  <tr><td>Gateway fee</td><td class="num">{{ payment.fee_paise|rupees }}</td></tr>
+  <tr><td>GST on fee</td><td class="num">{{ payment.fee_tax_paise|rupees }}</td></tr>
+  <tr><td>Refunded</td><td class="num">{{ payment.refunded_paise|rupees }}</td></tr>
+  <tr><td>Net to you</td><td class="num"><strong>{{ (payment.amount_paise - payment.fee_paise - payment.fee_tax_paise - payment.refunded_paise)|rupees }}</strong></td></tr>
+  {% if payment.failure_reason %}<tr><td>Failure</td>
+    <td class="num">{{ payment.failure_reason }}</td></tr>{% endif %}
+</table></div>
+
+<div class="card"><h2>Invoice</h2>
+  {% if invoice %}
+  <table>
+    <tr><td>Number</td><td class="num mono">{{ invoice.number }}</td></tr>
+    <tr><td>Kind</td><td class="num">{{ invoice.kind }}</td></tr>
+    <tr><td>Treatment</td><td class="num">{{ invoice.tax_treatment }}</td></tr>
+    <tr><td>Subtotal</td><td class="num">{{ invoice.subtotal_paise|rupees }}</td></tr>
+    {% if invoice.cgst_paise %}<tr><td>CGST</td>
+      <td class="num">{{ invoice.cgst_paise|rupees }}</td></tr>
+    <tr><td>SGST</td><td class="num">{{ invoice.sgst_paise|rupees }}</td></tr>{% endif %}
+    {% if invoice.igst_paise %}<tr><td>IGST</td>
+      <td class="num">{{ invoice.igst_paise|rupees }}</td></tr>{% endif %}
+    <tr><td>Total</td><td class="num"><strong>{{ invoice.total_paise|rupees }}</strong></td></tr>
+  </table>
+  <a class="btn btn-ghost btn-sm" style="margin-top:12px"
+     href="/admin/invoices/{{ invoice.id }}/pdf" target="_blank">Open PDF</a>
+  {% else %}<div class="empty">No invoice — payment not captured.</div>{% endif %}
+</div>
+</div>
+
+{% if payment.status in ['captured','partially_refunded'] %}
+<div class="card"><h2>Refund</h2>
+  <p class="sub">Goes back through the original payment. Leave the amount blank
+    to refund everything still refundable.</p>
+  <form method="post" action="/admin/payments/{{ payment.id }}/refund">
+    <div class="inline">
+      <div style="flex:1"><label>Amount in rupees (blank = full)</label>
+        <input name="amount" placeholder="1499.00"></div>
+      <div style="flex:2"><label>Reason</label>
+        <input name="reason" placeholder="Duplicate charge"></div>
+      <button class="btn-bad" type="submit">Refund</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if refunds %}
+<div class="card"><h2>Refunds</h2><table>
+  <tr><th>Reference</th><th>Status</th><th>Reason</th><th class="num">Amount</th></tr>
+  {% for r in refunds %}<tr><td class="mono">{{ r.reference }}</td>
+    <td><span class="dot s-{{ r.status }}"></span>{{ r.status }}</td>
+    <td>{{ r.reason or '—' }}</td>
+    <td class="num">{{ r.amount_paise|rupees }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

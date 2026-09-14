@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}{% set active='payments' %}
+{% block body %}
+<header class="page"><div><h1>Payments</h1>
+  <div class="sub">{{ payments|length }} shown</div></div>
+  <form class="inline" method="get">
+    <input name="q" value="{{ q }}" placeholder="Search reference or customer"
+      style="width:230px">
+    <select name="status" style="width:150px"><option value="">All statuses</option>
+      {% for s in statuses %}<option value="{{ s }}"
+        {{ 'selected' if status==s }}>{{ s }}</option>{% endfor %}</select>
+    <button type="submit">Filter</button>
+  </form>
+</header>
+<div class="card"><table>
+  <tr><th>Reference</th><th>Product</th><th>Customer</th><th>Method</th>
+      <th>Status</th><th class="num">Amount</th><th class="num">Fee</th><th>When</th></tr>
+  {% for p in payments %}
+  <tr>
+    <td class="mono"><a href="/admin/payments/{{ p.id }}">{{ p.reference }}</a></td>
+    <td>{{ products.get(p.product_id|string).slug if products.get(p.product_id|string) else '—' }}</td>
+    <td>{{ customers.get(p.customer_id|string).name if customers.get(p.customer_id|string) else '—' }}</td>
+    <td>{{ p.method or '—' }}</td>
+    <td><span class="dot s-{{ p.status }}"></span>{{ p.status }}</td>
+    <td class="num">{{ p.amount_paise|rupees }}</td>
+    <td class="num">{{ (p.fee_paise + p.fee_tax_paise)|rupees }}</td>
+    <td>{{ p.created_at.strftime('%d %b %H:%M') }}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="empty">No payments match.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}{% set active='wallets' %}
+{% block body %}
+<header class="page"><div><h1>{{ customer.name }}</h1>
+  <div class="sub mono">{{ customer.external_id }}</div></div>
+  <div class="pill">Balance: {{ balance|rupees }}</div></header>
+
+<div class="card"><h2>Manual adjustment</h2>
+  <p class="sub">The only way balance appears without a payment. Logged loudly in
+    the audit trail, because this creates spendable value out of nothing.</p>
+  <form method="post" action="/admin/wallets/{{ customer.id }}/adjust">
+    <div class="inline">
+      <div style="flex:1"><label>Direction</label>
+        <select name="direction"><option value="credit">Credit</option>
+          <option value="debit">Debit</option></select></div>
+      <div style="flex:1"><label>Amount (rupees)</label>
+        <input name="amount" placeholder="500.00" required></div>
+      <div style="flex:2"><label>Reason</label>
+        <input name="reason" placeholder="Goodwill credit for outage" required></div>
+      <button type="submit">Apply</button>
+    </div>
+  </form>
+</div>
+
+<div class="card"><h2>Ledger</h2><table>
+  <tr><th>When</th><th>Type</th><th>Source</th><th>Description</th>
+      <th class="num">Amount</th><th class="num">Balance after</th></tr>
+  {% for t in transactions %}
+  <tr>
+    <td>{{ t.created_at.strftime('%d %b %H:%M') }}</td>
+    <td>{{ t.type }}</td><td>{{ t.source }}</td>
+    <td>{{ t.description or '—' }}</td>
+    <td class="num">{{ ('+' if t.type=='credit' else '−') }}{{ t.amount_paise|plain_rupees }}</td>
+    <td class="num">{{ t.balance_after|rupees }}</td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="empty">No transactions.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

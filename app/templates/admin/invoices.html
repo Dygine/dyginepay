@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}{% set active='invoices' %}
+{% block body %}
+<header class="page"><div><h1>Invoices</h1>
+  <div class="sub">Sequential per financial year. Issued invoices are never edited —
+    a mistake becomes a credit note.</div></div></header>
+<div class="card"><table>
+  <tr><th>Number</th><th>Date</th><th>Customer</th><th>Product</th><th>Kind</th>
+      <th class="num">Subtotal</th><th class="num">Tax</th><th class="num">Total</th><th></th></tr>
+  {% for i in invoices %}
+  <tr>
+    <td class="mono">{{ i.number }}</td>
+    <td>{{ i.issue_date.strftime('%d %b %Y') }}</td>
+    <td>{{ customers.get(i.customer_id|string).name if customers.get(i.customer_id|string) else '—' }}</td>
+    <td>{{ products.get(i.product_id|string).slug if products.get(i.product_id|string) else '—' }}</td>
+    <td>{{ i.kind.replace('_',' ') }}</td>
+    <td class="num">{{ i.subtotal_paise|rupees }}</td>
+    <td class="num">{{ (i.cgst_paise + i.sgst_paise + i.igst_paise)|rupees }}</td>
+    <td class="num"><strong>{{ i.total_paise|rupees }}</strong></td>
+    <td class="num"><a class="btn btn-ghost btn-sm"
+      href="/admin/invoices/{{ i.id }}/pdf" target="_blank">PDF</a></td>
+  </tr>
+  {% else %}<tr><td colspan="9" class="empty">No invoices yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

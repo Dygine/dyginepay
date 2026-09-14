@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}{% set active='plans' %}
+{% block body %}
+<header class="page"><div><h1>Plans &amp; subscriptions</h1>
+  <div class="sub">Renewal is an explicit checkout each cycle, not an auto-debit
+    mandate — a failed mandate is your support problem, a reminder is theirs.</div></div></header>
+
+<div class="card"><h2>Add a plan</h2>
+<form method="post" action="/admin/plans">
+  <div class="inline">
+    <div style="flex:2"><label>Product</label><select name="product_id" required>
+      {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+    </select></div>
+    <div style="flex:1"><label>Code</label><input name="code" placeholder="pro" required></div>
+    <div style="flex:2"><label>Name</label><input name="name" placeholder="PGDesk Pro" required></div>
+    <div style="flex:1"><label>Amount (₹)</label><input name="amount" placeholder="1499" required></div>
+    <div style="flex:1"><label>Interval</label><select name="interval">
+      <option value="monthly">monthly</option><option value="quarterly">quarterly</option>
+      <option value="half_yearly">half yearly</option><option value="yearly">yearly</option>
+    </select></div>
+    <div style="flex:1"><label>Trial days</label><input name="trial_days" type="number" value="0"></div>
+    <button type="submit">Add</button>
+  </div>
+</form></div>
+
+<div class="card"><h2>Plans</h2><table>
+  <tr><th>Product</th><th>Code</th><th>Name</th><th>Interval</th>
+      <th class="num">Amount</th><th>Active</th></tr>
+  {% for p in plans %}
+  <tr><td>{{ product_map.get(p.product_id|string).slug if product_map.get(p.product_id|string) else '—' }}</td>
+    <td class="mono">{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.interval }}</td>
+    <td class="num">{{ p.amount_paise|rupees }}</td>
+    <td>{{ 'yes' if p.is_active else 'no' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No plans yet.</td></tr>{% endfor %}
+</table></div>
+
+<div class="card"><h2>Subscriptions</h2><table>
+  <tr><th>Reference</th><th>Customer</th><th>Plan</th><th>Status</th>
+      <th>Period ends</th><th>Grace</th></tr>
+  {% for s in subscriptions %}
+  <tr><td class="mono">{{ s.reference }}</td>
+    <td>{{ customers.get(s.customer_id|string).name if customers.get(s.customer_id|string) else '—' }}</td>
+    <td>{{ plan_map.get(s.plan_id|string).name if plan_map.get(s.plan_id|string) else '—' }}</td>
+    <td><span class="dot s-{{ s.status }}"></span>{{ s.status }}</td>
+    <td>{{ s.current_period_end.strftime('%d %b %Y') }}</td>
+    <td>{{ s.grace_days }}d</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">No subscriptions yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "admin/base.html" %}{% set active='dashboard' %}
+{% block body %}
+<header class="page">
+  <div><h1>Dashboard</h1>
+    <div class="sub">{{ since.strftime('%d %b') }} to {{ until.strftime('%d %b %Y') }}</div></div>
+  <div class="inline">
+    <a class="pill" href="?days=7">7d</a>
+    <a class="pill" href="?days=30">30d</a>
+    <a class="pill" href="?days=90">90d</a>
+  </div>
+</header>
+
+{% if not gst_registered %}
+<div class="flash">Not GST registered. Invoices are issued as bills of supply with
+no tax. Set BUSINESS_GSTIN when you register and tax invoices start immediately.</div>
+{% endif %}
+
+<div class="grid g4">
+  <div class="card stat"><div class="label">Net revenue</div>
+    <div class="value">{{ totals.net_revenue_paise|rupees }}</div>
+    <div class="note">{{ totals.payments_captured }} payments captured</div></div>
+  <div class="card stat"><div class="label">Gateway fees</div>
+    <div class="value">{{ totals.gateway_fee_paise|rupees }}</div>
+    <div class="note">actual, from Razorpay</div></div>
+  <div class="card stat"><div class="label">Costs</div>
+    <div class="value">{{ totals.costs_paise|rupees }}</div>
+    <div class="note">recorded manually</div></div>
+  <div class="card stat"><div class="label">Margin</div>
+    <div class="value">{{ totals.margin_paise|rupees }}</div>
+    <div class="note">{{ totals.customers }} customers</div></div>
+</div>
+
+<div class="card">
+  <h2>Revenue, last {{ days }} days</h2>
+  {% set peak = daily|map(attribute='amount_paise')|max %}
+  <div class="bars">
+    {% for d in daily %}
+      <i style="height:{{ (d.amount_paise / peak * 100) if peak else 0 }}%"
+         title="{{ d.date }} — {{ d.amount_paise|rupees }}"></i>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>Profitability by product</h2>
+  <p class="sub" style="margin-bottom:12px">Net revenue minus real gateway fees
+     minus recorded costs. Ranked by margin.</p>
+  <table>
+    <tr><th>Product</th><th class="num">Revenue</th><th class="num">Refunds</th>
+        <th class="num">Fees</th><th class="num">Costs</th>
+        <th class="num">Margin</th><th class="num">%</th></tr>
+    {% for m in margins %}
+    <tr>
+      <td><strong>{{ m.name }}</strong><br><span class="tag">{{ m.slug }}</span></td>
+      <td class="num">{{ m.revenue_paise|rupees }}</td>
+      <td class="num">{{ m.refunds_paise|rupees }}</td>
+      <td class="num">{{ m.gateway_fee_paise|rupees }}</td>
+      <td class="num">{{ m.costs_paise|rupees }}</td>
+      <td class="num"><strong>{{ m.margin_paise|rupees }}</strong></td>
+      <td class="num">{{ m.margin_percent }}%</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="empty">No products yet.
+      <a href="/admin/products" style="color:var(--brand)">Create one</a>.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Recent payments</h2>
+  <table>
+    <tr><th>Reference</th><th>Product</th><th>Customer</th><th>Status</th>
+        <th class="num">Amount</th></tr>
+    {% for p in recent %}
+    <tr>
+      <td class="mono"><a href="/admin/payments/{{ p.id }}">{{ p.reference }}</a></td>
+      <td>{{ products.get(p.product_id|string).name if products.get(p.product_id|string) else '—' }}</td>
+      <td>{{ customers.get(p.customer_id|string).name if customers.get(p.customer_id|string) else '—' }}</td>
+      <td><span class="dot s-{{ p.status }}"></span>{{ p.status }}</td>
+      <td class="num">{{ p.amount_paise|rupees }}</td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="empty">No payments yet.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

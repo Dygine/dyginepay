@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}{% set active='wallets' %}
+{% block body %}
+<header class="page"><div><h1>Wallets</h1>
+  <div class="sub">Closed loop: balance is spendable only on your products.
+    No cash out, no transfers between customers.</div></div>
+  <div class="pill">Total held: {{ total|rupees }}</div></header>
+
+{% if drift %}
+<div class="flash bad"><strong>{{ drift|length }} wallet(s) drifted.</strong>
+  Stored balance does not match the transaction ledger, which means a code path
+  wrote a balance without going through the lock. Investigate before taking more
+  top-ups.
+  {% for d in drift %}<code>{{ d.customer_id }} — stored {{ d.stored_paise }},
+    ledger {{ d.computed_paise }}</code>{% endfor %}</div>
+{% endif %}
+
+<div class="card"><table>
+  <tr><th>Customer</th><th>External id</th><th class="num">Balance</th><th></th></tr>
+  {% for w in wallets %}
+  {% set c = customers.get(w.customer_id|string) %}
+  <tr>
+    <td>{{ c.name if c else '—' }}</td>
+    <td class="mono">{{ c.external_id if c else '—' }}</td>
+    <td class="num"><strong>{{ w.balance_paise|rupees }}</strong></td>
+    <td class="num"><a class="btn btn-ghost btn-sm"
+      href="/admin/wallets/{{ w.customer_id }}">Ledger</a></td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="empty">No wallets yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

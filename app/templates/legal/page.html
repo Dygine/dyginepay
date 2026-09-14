@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title }} &middot; {{ business }}</title>
+<style>
+body{font:15px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ color:#111114;max-width:720px;margin:0 auto;padding:44px 22px 80px}
+h1{font-size:25px;letter-spacing:-.02em;margin:0 0 6px}
+.sub{color:#6e6e78;font-size:13px;margin-bottom:30px}
+h2{font-size:16px;margin:28px 0 8px}
+p,li{color:#33333a;margin-bottom:10px}
+ul{padding-left:20px}
+nav{margin-bottom:30px;padding-bottom:18px;border-bottom:1px solid #e6e6ea;
+ font-size:13px}
+nav a{color:#0d9488;text-decoration:none;margin-right:14px}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid #e6e6ea;
+ color:#6e6e78;font-size:12.5px}
+</style></head>
+<body>
+<nav>
+  <a href="/legal/terms">Terms</a><a href="/legal/privacy">Privacy</a>
+  <a href="/legal/refund">Refunds</a><a href="/legal/delivery">Delivery</a>
+  <a href="/legal/pricing">Pricing</a><a href="/legal/contact">Contact</a>
+</nav>
+<h1>{{ title }}</h1>
+<div class="sub">{{ business }} &middot; last updated {{ updated }}</div>
+{{ content|safe }}
+<footer>{{ business }} &middot; {{ address }} &middot; {{ email }}
+  {% if phone %}&middot; {{ phone }}{% endif %}
+  {% if gstin %}<br>GSTIN: {{ gstin }}{% endif %}</footer>
+</body></html>

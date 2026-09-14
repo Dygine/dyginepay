@@ -1,0 +1,35 @@
+# Safety net for the in-process dispatcher.
+#
+# The app runs its own loop every 10 seconds, which handles everything in normal
+# operation. This exists for when that loop dies with its process — a webhook
+# stuck in the queue because a worker died at 3am should not be discovered by a
+# customer.
+#
+# Both paths are idempotent, so running both is harmless.
+#
+# Setup: repo Settings → Secrets → Actions
+#   DYGINE_BASE_URL       https://pay.dygine.com
+#   DYGINE_INTERNAL_TOKEN the INTERNAL_TASK_TOKEN value from Render
+
+name: dygine-pay tasks
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # webhook queue, every 15 minutes
+    - cron: "30 1 * * *"     # daily jobs at 07:00 IST
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run scheduled tasks
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X POST \
+            "${{ secrets.DYGINE_BASE_URL }}/internal/tasks/run" \
+            -H "X-Internal-Token: ${{ secrets.DYGINE_INTERNAL_TOKEN }}")
+          cat /tmp/out.json
+          if [ "$code" != "200" ]; then
+            echo "::error::tasks endpoint returned $code"
+            exit 1
+          fi

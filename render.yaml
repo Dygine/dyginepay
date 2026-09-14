@@ -1,0 +1,67 @@
+# Render blueprint. Push this repo, then New → Blueprint and point it here.
+#
+# Starter, not Free, on purpose. Free instances sleep after 15 minutes and take
+# around 50 seconds to wake. A Razorpay webhook arriving at a sleeping service
+# times out — Razorpay retries so no money is lost, but the customer stares at
+# "pending" for minutes after paying. $7/mo is what makes this trustworthy.
+services:
+  - type: web
+    name: dygine-pay
+    runtime: python
+    plan: starter
+    region: singapore          # closest to India of Render's regions
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: SESSION_COOKIE_SECURE
+        value: true
+
+      # Generated once by Render and kept. Never rotate ENCRYPTION_KEY without
+      # re-encrypting stored secrets first — they become unreadable.
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: INTERNAL_TASK_TOKEN
+        generateValue: true
+
+      # --- set these yourself in the Render dashboard ---
+      - key: DATABASE_URL
+        sync: false            # from Neon, with ?sslmode=require
+      - key: BASE_URL
+        sync: false            # https://pay.dygine.com
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAY_MODE
+        sync: false            # test, then live
+
+      # --- business identity, printed on every invoice ---
+      - key: BUSINESS_NAME
+        value: Dygine Software Solution
+      - key: BUSINESS_ADDRESS
+        sync: false
+      - key: BUSINESS_EMAIL
+        sync: false
+      - key: BUSINESS_PHONE
+        sync: false
+      - key: BUSINESS_STATE_CODE
+        value: "29"
+      - key: BUSINESS_GSTIN
+        sync: false            # leave empty until registered
+      - key: BUSINESS_PAN
+        sync: false

@@ -1,0 +1,13 @@
+{% extends "admin/base.html" %}{% set active='audit' %}
+{% block body %}
+<header class="page"><div><h1>Audit log</h1>
+  <div class="sub">Every state change, who made it, and when.</div></div></header>
+<div class="card"><table>
+  <tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>Summary</th></tr>
+  {% for l in logs %}
+  <tr><td>{{ l.created_at.strftime('%d %b %H:%M:%S') }}</td>
+    <td class="mono">{{ l.actor }}</td><td>{{ l.action }}</td>
+    <td>{{ l.entity_type }}</td><td>{{ l.summary }}</td></tr>
+  {% else %}<tr><td colspan="5" class="empty">Nothing logged yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

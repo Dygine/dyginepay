@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db, session as new_session
 from app.core.money import rupee_display
-from app.models import Customer, Order
+from app.models import Customer, Order, Product
 from app.models.enums import CheckoutStatus
 from app.services import checkout_service, razorpay_client
 
@@ -48,9 +48,11 @@ def checkout_page(token: str, request: Request):
 
         order = db.get(Order, session.order_id)
         customer = db.get(Customer, session.customer_id)
+        product = db.get(Product, session.product_id)
         return templates.TemplateResponse("checkout/pay.html", {
             "request": request, "session": session, "order": order,
-            "customer": customer, "business": settings.BUSINESS_NAME,
+            "customer": customer, "product": product,
+            "business": settings.BUSINESS_NAME,
             "razorpay_key_id": settings.RAZORPAY_KEY_ID,
             "callback_url": f"{settings.BASE_URL.rstrip('/')}/c/{token}/callback",
         })

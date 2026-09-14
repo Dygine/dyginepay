@@ -38,7 +38,9 @@ button:disabled{opacity:.6;cursor:wait}
 <body>
 <div class="box">
   <div class="head">
-    <div class="biz">{{ business }}</div>
+    {# The tool the customer is actually paying for. They know "PGGuru"; they
+       have very likely never heard of the company that operates it. #}
+    <div class="biz">{{ product.name if product else business }}</div>
     <div class="amt">{{ session.total_paise|rupees }}</div>
     <div class="to">{{ customer.name }}</div>
   </div>
@@ -64,8 +66,14 @@ button:disabled{opacity:.6;cursor:wait}
 
   <div class="foot">
     <button id="pay">Pay {{ session.total_paise|rupees }}</button>
-    <div class="secure">Secured by Razorpay &middot; card details never touch
-      {{ business }}</div>
+    {# Naming the collecting entity is not legal boilerplate, it is what stops
+       a chargeback. Whatever the modal says, the customer's card or bank
+       statement carries the Razorpay account holder - this company - and a
+       line they do not recognise is a line they dispute. #}
+    <div class="secure">Payments collected by {{ business }} &middot; this will
+      appear on your statement</div>
+    <div class="secure" style="margin-top:4px">Secured by Razorpay &middot;
+      card details never touch {{ business }}</div>
     <div class="expiry">This link expires at
       {{ session.expires_at.strftime('%H:%M') }}</div>
   </div>
@@ -91,7 +99,9 @@ var rzp = new Razorpay({
   key: "{{ razorpay_key_id }}",
   amount: {{ session.total_paise }},
   currency: "INR",
-  name: {{ business|tojson }},
+  {# Razorpay shows this as the merchant name in its modal. The product, not
+     the operating company, for the same reason as the header above. #}
+  name: {{ (product.name if product else business)|tojson }},
   description: {{ (session.line_items[0].description if session.line_items else 'Payment')|tojson }},
   order_id: {{ order.razorpay_order_id|tojson }},
   prefill: { name: {{ customer.name|tojson }},

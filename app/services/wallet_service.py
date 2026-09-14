@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, InsufficientBalanceError, NotFoundError
-from app.models import Customer, Wallet, WalletTransaction
+from app.models import Customer, Product, Wallet, WalletTransaction
 from app.models.enums import WalletTxnSource, WalletTxnType
 
 
@@ -74,6 +74,33 @@ def _existing(db: Session, wallet_id: uuid.UUID, key: str | None) -> WalletTrans
         WalletTransaction.idempotency_key == key)).first()
 
 
+def _announce(db: Session, customer_id: uuid.UUID, event: str,
+              txn: WalletTransaction) -> None:
+    """
+    Tell the owning tool the balance moved.
+
+    Queued, not sent inline - a slow consumer must never make a wallet debit
+    slow or fail. Imported here rather than at module scope because
+    webhook_service imports nothing from this module and a top-level import
+    would create a cycle.
+    """
+    from app.services import webhook_service
+
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        return
+    product = db.get(Product, customer.product_id)
+    webhook_service.enqueue(db, product, event, {
+        "customer_external_id": customer.external_id,
+        "transaction_id": str(txn.id),
+        "type": txn.type,
+        "source": txn.source,
+        "amount": txn.amount_paise,
+        "balance": txn.balance_after,
+        "description": txn.description,
+    })
+
+
 def credit(db: Session, customer_id: uuid.UUID, amount_paise: int, *,
            source: str = WalletTxnSource.TOPUP, description: str = "",
            reference_type: str | None = None, reference_id: str | None = None,
@@ -95,6 +122,7 @@ def credit(db: Session, customer_id: uuid.UUID, amount_paise: int, *,
         idempotency_key=idempotency_key)
     db.add(txn)
     db.flush()
+    _announce(db, customer_id, "wallet.credited", txn)
     return txn
 
 
@@ -126,6 +154,7 @@ def debit(db: Session, customer_id: uuid.UUID, amount_paise: int, *,
         idempotency_key=idempotency_key)
     db.add(txn)
     db.flush()
+    _announce(db, customer_id, "wallet.debited", txn)
     return txn
 
 

@@ -103,7 +103,17 @@ def compute(line_items: list[dict], buyer_state_code: str | None,
         if qty < 1:
             raise ValueError("quantity must be at least 1")
         unit = int(item["amount"])
-        if unit < 0:
+
+        # A discount line carries a negative amount and reduces the taxable
+        # value of the document. Under GST s.15(3)(a) a discount given at the
+        # time of supply and shown on the invoice is deductible, so it has to
+        # appear as its own line rather than being quietly netted off a price -
+        # the customer's accountant needs to see what was charged and what was
+        # allowed off it.
+        is_discount = str(item.get("kind") or "").lower() == "discount" or unit < 0
+        if is_discount:
+            unit = -abs(unit)
+        elif unit < 0:
             raise ValueError("amount cannot be negative")
         taxable = unit * qty
 
@@ -119,6 +129,8 @@ def compute(line_items: list[dict], buyer_state_code: str | None,
         if treatment == TaxTreatment.INTRA_STATE:
             # Half each. Computed as half the total rather than two separate
             # roundings, so CGST + SGST always equals the full tax exactly.
+            # Negative taxable values flow through unchanged, which is what
+            # makes a discount reduce the tax rather than only the subtotal.
             total_tax = tax_on(taxable, rate)
             line.cgst_paise = half_up(total_tax, 2)
             line.sgst_paise = total_tax - line.cgst_paise
@@ -126,6 +138,12 @@ def compute(line_items: list[dict], buyer_state_code: str | None,
             line.igst_paise = tax_on(taxable, rate)
 
         doc.lines.append(line)
+
+    # A document that nets to zero or below is a mistake somewhere upstream -
+    # a discount larger than the charge it applies to. Refusing here gives the
+    # calling tool a clear error instead of an invoice for nothing.
+    if doc.subtotal_paise < 0:
+        raise ValueError("Discounts exceed the charges on this document")
 
     return doc
 

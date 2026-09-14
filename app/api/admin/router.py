@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,24 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="app/templates")
 templates.env.filters["rupees"] = rupee_display
 templates.env.filters["plain_rupees"] = paise_to_rupees
+
+
+FLASH_COOKIE = "dygine_issued_key"
+
+
+def _flash_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.SECRET_KEY, salt="dygine-key-flash")
+
+
+def _read_flash(request: Request) -> dict:
+    """Read the one-shot issued-key cookie. Signed, so it cannot be forged."""
+    raw = request.cookies.get(FLASH_COOKIE)
+    if not raw:
+        return {}
+    try:
+        return _flash_serializer().loads(raw, max_age=120)
+    except (BadSignature, SignatureExpired):
+        return {}
 
 
 def ctx(request: Request, user: AdminUser, **extra) -> dict:
@@ -119,10 +138,16 @@ def products_page(request: Request, user: AdminUser = Depends(current_user),
     for p in products:
         keys[str(p.id)] = db.scalars(select(ApiKey).where(
             ApiKey.product_id == p.id).order_by(ApiKey.created_at.desc())).all()
-    return templates.TemplateResponse("admin/products.html", ctx(
+
+    # Read the one-shot secret, then delete the cookie so a refresh does not
+    # show it again and a shared screen does not leak it later.
+    flash = _read_flash(request)
+    response = templates.TemplateResponse("admin/products.html", ctx(
         request, user, products=products, keys=keys,
-        new_secret=request.query_params.get("secret"),
-        new_key_id=request.query_params.get("key_id")))
+        new_secret=flash.get("secret"), new_key_id=flash.get("key_id")))
+    if flash:
+        response.delete_cookie(FLASH_COOKIE, path="/admin")
+    return response
 
 
 @router.post("/products")
@@ -186,8 +211,20 @@ def issue_key(product_id: uuid.UUID, mode: str = Form(default=KeyMode.TEST),
                  entity_type="api_key", entity_id=key.key_id,
                  summary=f"Issued {mode} key for {product.slug}")
     db.commit()
-    return RedirectResponse(
-        f"/admin/products?key_id={key.key_id}&secret={secret}", status_code=303)
+
+    # The secret goes back in a one-shot signed cookie, never in the URL.
+    #
+    # A query string lands in browser history, in Render's access logs, and in
+    # the Referer header of any outbound link on the page. None of those are
+    # places an API secret that can move money should ever be written. The
+    # cookie is read once by the next page render and deleted immediately.
+    response = RedirectResponse("/admin/products?issued=1", status_code=303)
+    response.set_cookie(
+        FLASH_COOKIE,
+        _flash_serializer().dumps({"key_id": key.key_id, "secret": secret}),
+        max_age=120, httponly=True, secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax", path="/admin")
+    return response
 
 
 @router.post("/keys/{key_id}/revoke")

@@ -129,9 +129,21 @@ def _customer_payload(db: Session, customer: Customer) -> dict:
 
 # --------------------------------------------------------------- wallet --
 @router.get("/customers/{external_id}/wallet")
-def get_wallet(external_id: str, caller: Caller = Depends(authenticate),
+def get_wallet(external_id: str, balance_only: bool = Query(default=False),
+               caller: Caller = Depends(authenticate),
                db: Session = Depends(get_db)):
+    """
+    Wallet balance and recent movements.
+
+    Pass balance_only=1 when you just need the number. A consuming tool that
+    renders a balance on every billing page load does not want fifty
+    transaction rows serialised each time.
+    """
     customer = _customer(db, caller, external_id)
+    if balance_only:
+        return {"customer_external_id": external_id,
+                "balance": wallet_service.balance(db, customer.id),
+                "currency": "INR"}
     txns = wallet_service.transactions(db, customer.id, limit=50)
     return {
         "customer_external_id": external_id,

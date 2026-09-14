@@ -93,8 +93,12 @@ def create_session(db: Session, product: Product, payload: dict) -> CheckoutSess
     for item in line_items:
         if "description" not in item or "amount" not in item:
             raise ValidationError("Each line item needs a description and an amount")
-        if int(item["amount"]) < 0:
-            raise ValidationError("Line item amount cannot be negative")
+        # Negative amounts are permitted only on an explicit discount line.
+        # Without that check a typo'd minus sign silently reduces a charge.
+        is_discount = str(item.get("kind") or "").lower() == "discount"
+        if int(item["amount"]) < 0 and not is_discount:
+            raise ValidationError(
+                "A negative amount is only allowed on a line with kind='discount'")
 
     doc = gst.compute(line_items, customer.state_code)
     if doc.total_paise < 100:

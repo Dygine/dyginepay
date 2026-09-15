@@ -17,6 +17,15 @@ headers rather than by anything in the request handler:
 So frame-ancestors is 'none' everywhere, and the checkout CSP names Razorpay's
 hosts and nothing else.
 
+**The nonce.** `pay.html` carries its Razorpay setup in an inline <script>, and
+a script-src without 'unsafe-inline' blocks inline scripts outright - the page
+renders perfectly and the Pay button does nothing, because the line that binds
+its onclick handler never ran. The fix is not 'unsafe-inline', which would let
+*any* injected script run on the one page where that matters most. Instead a
+fresh nonce is minted per request, put on `request.state.csp_nonce` for the
+template to echo, and named in the header. Only the script carrying that exact
+nonce executes; injected markup, which cannot know it, does not.
+
 The admin gets its own, slightly looser policy because its templates use inline
 styles. `unsafe-inline` for styles is a real weakening and is stated here rather
 than hidden: it permits CSS injection, not script injection, and the templates
@@ -27,6 +36,8 @@ Nothing here is applied to `/v1` responses beyond `default-src 'none'`: an API
 response has no legitimate reason to load anything at all.
 """
 from __future__ import annotations
+
+import secrets
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -44,41 +55,50 @@ BASE_HEADERS = {
 
 HSTS = "max-age=31536000; includeSubDomains"
 
-#: Razorpay Checkout loads its bundle from checkout.razorpay.com and talks to
-#: api.razorpay.com and lumberjack.razorpay.com. Its own script injects an
-#: iframe, which is why frame-src is present while frame-ancestors stays none -
-#: we may embed Razorpay, nobody may embed us.
-CHECKOUT_CSP = "; ".join([
-    "default-src 'self'",
-    "script-src 'self' https://checkout.razorpay.com",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https://*.razorpay.com",
-    "connect-src 'self' https://*.razorpay.com",
-    "frame-src https://*.razorpay.com https://api.razorpay.com",
-    "form-action 'self' https://*.razorpay.com",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-])
 
-ADMIN_CSP = "; ".join([
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "connect-src 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-    "form-action 'self'",
-])
+def checkout_csp(nonce: str) -> str:
+    """
+    Razorpay Checkout loads its bundle from checkout.razorpay.com and talks to
+    api.razorpay.com and lumberjack.razorpay.com. Its own script injects an
+    iframe, which is why frame-src is present while frame-ancestors stays none -
+    we may embed Razorpay, nobody may embed us.
+
+    The nonce covers this page's own inline script and nothing else.
+    """
+    return "; ".join([
+        "default-src 'self'",
+        f"script-src 'self' 'nonce-{nonce}' https://checkout.razorpay.com",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https://*.razorpay.com",
+        "connect-src 'self' https://*.razorpay.com",
+        "frame-src https://*.razorpay.com https://api.razorpay.com",
+        "form-action 'self' https://*.razorpay.com",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+    ])
+
+
+def admin_csp(nonce: str) -> str:
+    return "; ".join([
+        "default-src 'self'",
+        f"script-src 'self' 'nonce-{nonce}'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+    ])
+
 
 API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 
-def _policy_for(path: str) -> str:
+def _policy_for(path: str, nonce: str) -> str:
     if path.startswith("/c/"):
-        return CHECKOUT_CSP
+        return checkout_csp(nonce)
     if path.startswith("/admin") or path.startswith("/legal"):
-        return ADMIN_CSP
+        return admin_csp(nonce)
     return API_CSP
 
 
@@ -90,6 +110,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.hsts = hsts
 
     async def dispatch(self, request: Request, call_next):
+        # Minted before the handler runs, so a template can read it off
+        # request.state and echo it into its <script nonce="...">. The same
+        # value goes into the header below; a nonce that did not match would
+        # block the script just as surely as having none at all.
+        nonce = secrets.token_urlsafe(16)
+        request.state.csp_nonce = nonce
+
         response = await call_next(request)
 
         for name, value in BASE_HEADERS.items():
@@ -103,5 +130,5 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers.setdefault("Strict-Transport-Security", HSTS)
 
         response.headers.setdefault(
-            "Content-Security-Policy", _policy_for(request.url.path))
+            "Content-Security-Policy", _policy_for(request.url.path, nonce))
         return response

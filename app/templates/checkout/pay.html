@@ -85,7 +85,7 @@ button:disabled{opacity:.6;cursor:wait}
 </form>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 // The callback is posted to our server, which verifies the signature before
 // anything is written. Nothing here is trusted; this form is a courier.
 var btn = document.getElementById('pay'),

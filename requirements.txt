@@ -1,8 +1,8 @@
 # --- web ---
-fastapi==0.115.0
+fastapi==0.115.6
 uvicorn[standard]==0.30.6
-python-multipart==0.0.9
-jinja2==3.1.4
+python-multipart==0.0.31
+jinja2==3.1.6
 itsdangerous==2.2.0
 
 # --- database ---
@@ -17,7 +17,7 @@ email-validator==2.2.0
 
 # --- security ---
 argon2-cffi==23.1.0
-cryptography==43.0.1
+cryptography==44.0.1
 
 # --- http client (Razorpay + outbound webhooks) ---
 httpx==0.27.2

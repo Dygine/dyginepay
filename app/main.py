@@ -29,6 +29,7 @@ from app.api.v1 import router as v1_router
 from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import AppError, AuthError
+from app.middleware import SecurityHeadersMiddleware
 from app.workers.dispatcher import loop as dispatcher_loop
 
 logging.basicConfig(
@@ -57,6 +58,10 @@ app = FastAPI(
     docs_url="/v1/docs" if settings.DEBUG else None,
     redoc_url=None,
 )
+
+# Outermost middleware, so the headers land on error responses too - a 500 on
+# the checkout page is exactly when you still want frame-ancestors enforced.
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(v1_router.router)
 app.include_router(admin_router.router)
